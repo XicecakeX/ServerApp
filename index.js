@@ -17,46 +17,83 @@ var knex = require('knex')({
 /**Using bodyParser*/
 app.use(jp);
 
+/**Allowing Access*/
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+});
+
 /**Home Endpoint*/
 app.get('/', (req, res) => {
   //Sending response
   res.send("This is the home page");
 });
 
-/**Assets Endpoint*/
-app.get('/assets/:index', (req, res) => {
+/**Assets ID Endpoint*/
+app.get('/assets?', (req, res) => {
   //Declaring fields
-  let index = req.params.index;
+  let query = req.query;
+  let queryProperties = Object.getOwnPropertyNames(query);
+  let option = queryProperties[0];
+  let value = query[option];
 
-  //Checking index
-  return checkIndex(index).then(
-    //Getting result
-    (result) => {
-      //Checking result
-      if(result === false){
-        //Sending response
-        res.send("Invalid index");
-      }else{
-        //Getting database
-        return knex.select().from('Assets').then(
-          //Getting rows
-          (rows) => {
-            //Declaring fields
-            let r = rows[index];
+  //Getting database
+  return knex.select().from('Assets').where({[option]: value}).then(
+    //Getting rows
+    (rows) => {
+      if(rows.length === 0){
+        //Sending error response
+        res.status(404).send("error");
+      }else if(rows.length === 1){
+        //Declaring fields
+        let r = rows[0];
 
-            //Creating data
-            let data = "ID: " + r.ID +
-                        "\nFirst Name: " + r.FirstName +
-                        "\nLast Name: " + r.LastName +
-                        "\nLogin: " + r.Login +
-                        "\nPassword: " + r.Password +
-                        "\nDealer: " + r.Dealer +
-                        "\nReseller: " + r.Reseller;
-
-            //Sending response
-            res.send(data);
+        //Creating data
+        let data = [
+          "Single",
+          {
+            id: r.ID,
+            subID: r.PAQSubID,
+            firstName: r.FirstName,
+            lastName: r.LastName,
+            login: r.Login,
+            password: r.Password,
+            dealer: r.Dealer,
+            reseller: r.Reseller,
+            email: r.Email,
+            address: r.Address
           }
-        );
+        ];
+
+        //Sending response
+        res.send(data);
+      }else{
+        //Declaring fields
+        let data = ["Multiple", []];
+
+        //Iterating through rows
+        for(let i = 0; i < rows.length; i++){
+          //Getting row
+          let r = rows[i];
+
+          //Adding to array
+          data[1].push({
+            id: r.ID,
+            subID: r.PAQSubID,
+            firstName: r.FirstName,
+            lastName: r.LastName,
+            login: r.Login,
+            password: r.Password,
+            dealer: r.Dealer,
+            reseller: r.Reseller,
+            email: r.Email,
+            address: r.Address
+          });
+        }
+
+        //Sending response
+        res.send(data);
       }
     }
   );
@@ -70,20 +107,3 @@ app.get('/*', (req, res) => {
 
 /**Listening on Port 3000*/
 app.listen(3000, () => console.log("Listening on port 3000!"));
-
-/**checkIndex Function*/
-checkIndex = (index) => {
-  //Getting database
-  return knex.select().from('Assets').then(
-    (rows) => {
-      //Checking index
-      if(index > rows.length || index < 0){
-        //Returning false
-        return false;
-      }else{
-        //Returning true
-        return true;
-      }
-    }
-  );
-}
